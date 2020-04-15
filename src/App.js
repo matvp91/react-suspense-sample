@@ -1,26 +1,43 @@
-import React from 'react';
-import logo from './logo.svg';
-import './App.css';
+import React, { Suspense, useState } from "react";
+import NavButton from "./NavButton";
+import { resourceTimeline, resourceProfile } from "./api";
+import { preloadResources } from "./createResource";
 
-function App() {
+const Pages = {
+  home: "home",
+  profile: "profile",
+};
+
+const PageComponents = {
+  [Pages.home]: React.lazy(() => import("./Home")),
+  [Pages.profile]: React.lazy(() => import("./Profile")),
+};
+
+export default function App() {
+  const [page, setPage] = useState(Pages.home);
+
+  const Page = PageComponents[page];
+
   return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
-    </div>
+    <>
+      <ul>
+        <li>
+          <NavButton onClick={() => setPage("home")}>Home</NavButton>
+        </li>
+        <li>
+          <NavButton
+            onClick={() => setPage("profile")}
+            preload={preloadResources([resourceTimeline, resourceProfile])}
+          >
+            Profile
+          </NavButton>
+        </li>
+      </ul>
+      <div>
+        <Suspense fallback={<div>Loading...</div>}>
+          <Page />
+        </Suspense>
+      </div>
+    </>
   );
 }
-
-export default App;
