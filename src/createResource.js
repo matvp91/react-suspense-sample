@@ -15,8 +15,32 @@ export default function createResource(promiseFn) {
   // TODO: LRU cache or something similar?
   const cache = new Map();
 
-  function load(key) {
-    const promise = promiseFn(key);
+  function parsePayload(payload = {}) {
+    if (typeof payload === "string") {
+      console.warn(
+        "Using a string type as key in resource.load(key) is not adviced. Use resource.load({ key: 'identifier' }) instead."
+      );
+      return {
+        key: payload,
+      };
+    }
+
+    if (typeof payload !== "object") {
+      throw new Error(
+        "Using a non object key in resource.load(key) is not allowed."
+      );
+    }
+
+    if (!payload.key) {
+      payload.key = defaultKeySymbol;
+    }
+
+    return payload;
+  }
+
+  function load(payload) {
+    const { key, ...promisePayload } = payload;
+    const promise = promiseFn(promisePayload);
 
     const cacheEntry = {
       state: ResourceState.Pending,
@@ -38,7 +62,9 @@ export default function createResource(promiseFn) {
     return cacheEntry;
   }
 
-  function read(key = defaultKeySymbol) {
+  function read(input) {
+    const payload = parsePayload(input);
+
     const {
       ReactCurrentDispatcher,
     } = React.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
@@ -48,11 +74,11 @@ export default function createResource(promiseFn) {
       );
     }
 
-    if (!cache.has(key)) {
-      throw load(key);
+    if (!cache.has(payload.key)) {
+      throw load(payload);
     }
 
-    const { state, value, promise } = cache.get(key);
+    const { state, value, promise } = cache.get(payload.key);
 
     if (state === ResourceState.Cached) {
       return value;
@@ -63,22 +89,32 @@ export default function createResource(promiseFn) {
     throw promise;
   }
 
-  function preload(key = defaultKeySymbol) {
+  function preload(input) {
+    const payload = parsePayload(input);
+
     if (
       // We've got a result in our cache
-      cache.has(key) &&
+      cache.has(payload.key) &&
       // And the resource is pending or has a value
-      cache.get(key).state !== ResourceState.Failed
+      cache.get(payload.key).state !== ResourceState.Failed
     ) {
       return;
     }
-    load(key);
+    load(payload);
+  }
+
+  function clear(input) {
+    const { key } = parsePayload(input);
+    if (cache.has(key)) {
+      cache.delete(key);
+    }
   }
 
   return {
     $$type: ResourceTypeSymbol,
     read,
     preload,
+    clear,
   };
 }
 
@@ -88,9 +124,7 @@ export function preloadResources(potentialResources) {
       (it) => it.$$type === ResourceTypeSymbol
     );
 
-    if (
-      resources.length !== potentialResources.length
-    ) {
+    if (resources.length !== potentialResources.length) {
       console.warn(
         "Not all given resources are valid, have they been created with createResource()?",
         { resources: potentialResources }

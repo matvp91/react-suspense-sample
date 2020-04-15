@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { resourceTimeline } from "./api";
 
 export default function ProfileTimeline() {
