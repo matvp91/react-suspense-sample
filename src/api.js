@@ -7,7 +7,7 @@ export const resourceProfile = createResource(() => {
   ).then((response) => response.json());
 });
 
-export const resourceTimeline = createResource(() => {
+export const resourceTimeline = createResource(async () => {
   const delay = "3000ms";
   return fetch(
     `https://www.mocky.io/v2/5e97440d3000006e00b6dd60?mocky-delay=${delay}`

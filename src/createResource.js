@@ -9,20 +9,16 @@ const ResourceState = {
 const ResourceTypeSymbol = Symbol("resource");
 
 export default function createResource(promiseFn) {
-  const defaultKeySymbol = Symbol("resource.default_key");
+  // TODO: Weak LRU maybe?
+  const cache = new WeakMap();
 
-  // This would keep references in our map for the entire lifecycle of our app.
-  // TODO: LRU cache or something similar?
-  const cache = new Map();
+  const defaultPayload = {
+    key: 'DEFAULT_RESOURCE_KEY',
+  };
 
-  function parsePayload(payload = {}) {
-    if (typeof payload === "string") {
-      console.warn(
-        "Using a string type as key in resource.load(key) is not adviced. Use resource.load({ key: 'identifier' }) instead."
-      );
-      return {
-        key: payload,
-      };
+  function parsePayload(payload) {
+    if (payload === undefined) {
+      payload = defaultPayload;
     }
 
     if (typeof payload !== "object") {
@@ -31,16 +27,11 @@ export default function createResource(promiseFn) {
       );
     }
 
-    if (!payload.key) {
-      payload.key = defaultKeySymbol;
-    }
-
     return payload;
   }
 
-  function load(payload) {
-    const { key, ...promisePayload } = payload;
-    const promise = promiseFn(promisePayload);
+  function load(key) {
+    const promise = promiseFn(key);
 
     const cacheEntry = {
       state: ResourceState.Pending,
@@ -74,11 +65,11 @@ export default function createResource(promiseFn) {
       );
     }
 
-    if (!cache.has(payload.key)) {
+    if (!cache.has(payload)) {
       throw load(payload);
     }
 
-    const { state, value, promise } = cache.get(payload.key);
+    const { state, value, promise } = cache.get(payload);
 
     if (state === ResourceState.Cached) {
       return value;
@@ -94,9 +85,9 @@ export default function createResource(promiseFn) {
 
     if (
       // We've got a result in our cache
-      cache.has(payload.key) &&
+      cache.has(payload) &&
       // And the resource is pending or has a value
-      cache.get(payload.key).state !== ResourceState.Failed
+      cache.get(payload).state !== ResourceState.Failed
     ) {
       return;
     }
