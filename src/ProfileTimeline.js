@@ -1,13 +1,12 @@
 import React from "react";
-import { resourceTimeline } from "./api";
 
-export default function ProfileTimeline() {
-  const timeline = resourceTimeline.read();
+export default function ProfileTimeline({ resource }) {
+  const timeline = resource.read();
 
   return (
     <ul>
-      {timeline.items.map((it) => (
-        <li key={it.id}>{it.id}</li>
+      {timeline.map((it) => (
+        <li key={it.id}>{it.message}</li>
       ))}
     </ul>
   );

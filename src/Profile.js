@@ -1,9 +1,15 @@
 import React, { Suspense } from "react";
 import ProfileTimeline from "./ProfileTimeline";
-import { resourceProfile } from "./api";
+import { TimelineResource } from "./api";
+import { useResource } from "./createResource";
 
-export default function Profile() {
-  const profile = resourceProfile.read();
+export default function Profile({ resource }) {
+  const profile = resource.read();
+
+  const timelineResource = useResource(
+    () => TimelineResource({ id: profile.id }),
+    [profile]
+  );
 
   return (
     <div>
@@ -11,7 +17,7 @@ export default function Profile() {
         {profile.firstName} {profile.lastName}
       </h1>
       <Suspense fallback={<div>Loading...</div>}>
-        <ProfileTimeline />
+        <ProfileTimeline resource={timelineResource} />
       </Suspense>
     </div>
   );

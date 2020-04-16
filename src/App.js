@@ -1,22 +1,31 @@
 import React, { Suspense, useState } from "react";
 import NavButton from "./NavButton";
-import { resourceTimeline, resourceProfile } from "./api";
-import { preloadResources } from "./createResource";
+import { ProfileResource } from "./api";
+import { preloadResources, useResource } from "./createResource";
 
 const Pages = {
   home: "home",
   profile: "profile",
 };
 
-const PageComponents = {
-  [Pages.home]: React.lazy(() => import("./Home")),
-  [Pages.profile]: React.lazy(() => import("./Profile")),
-};
+const Home = React.lazy(() => import("./Home"));
+const Profile = React.lazy(() => import("./Profile"));
 
 export default function App() {
   const [page, setPage] = useState(Pages.home);
 
-  const Page = PageComponents[page];
+  const profileId = 1;
+  const profileResource = useResource(
+    () => ProfileResource({ id: profileId }),
+    [profileId]
+  );
+
+  let pageComponent;
+  if (page === Pages.profile) {
+    pageComponent = <Profile resource={profileResource} />;
+  } else {
+    pageComponent = <Home />;
+  }
 
   return (
     <>
@@ -27,16 +36,14 @@ export default function App() {
         <li>
           <NavButton
             onClick={() => setPage("profile")}
-            preload={preloadResources([resourceTimeline, resourceProfile])}
+            preload={preloadResources([profileResource])}
           >
             Profile
           </NavButton>
         </li>
       </ul>
       <div>
-        <Suspense fallback={<div>Loading...</div>}>
-          <Page />
-        </Suspense>
+        <Suspense fallback={<div>Loading...</div>}>{pageComponent}</Suspense>
       </div>
     </>
   );

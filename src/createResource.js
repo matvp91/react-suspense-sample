@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 
 const ResourceState = {
   Pending: "pending",
@@ -9,26 +9,9 @@ const ResourceState = {
 const ResourceTypeSymbol = Symbol("resource");
 
 export default function createResource(promiseFn) {
-  // TODO: Weak LRU maybe?
-  const cache = new WeakMap();
+  const cache = new Map();
 
-  const defaultPayload = {
-    key: 'DEFAULT_RESOURCE_KEY',
-  };
-
-  function parsePayload(payload) {
-    if (payload === undefined) {
-      payload = defaultPayload;
-    }
-
-    if (typeof payload !== "object") {
-      throw new Error(
-        "Using a non object key in resource.load(key) is not allowed."
-      );
-    }
-
-    return payload;
-  }
+  const defaultKey = Symbol('resource.default_key');
 
   function load(key) {
     const promise = promiseFn(key);
@@ -53,9 +36,7 @@ export default function createResource(promiseFn) {
     return cacheEntry;
   }
 
-  function read(input) {
-    const payload = parsePayload(input);
-
+  function read(key = defaultKey) {
     const {
       ReactCurrentDispatcher,
     } = React.__SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED;
@@ -65,11 +46,11 @@ export default function createResource(promiseFn) {
       );
     }
 
-    if (!cache.has(payload)) {
-      throw load(payload);
+    if (!cache.has(key)) {
+      throw load(key);
     }
 
-    const { state, value, promise } = cache.get(payload);
+    const { state, value, promise } = cache.get(key);
 
     if (state === ResourceState.Cached) {
       return value;
@@ -80,22 +61,19 @@ export default function createResource(promiseFn) {
     throw promise;
   }
 
-  function preload(input) {
-    const payload = parsePayload(input);
-
+  function preload(key = defaultKey) {
     if (
       // We've got a result in our cache
-      cache.has(payload) &&
+      cache.has(key) &&
       // And the resource is pending or has a value
-      cache.get(payload).state !== ResourceState.Failed
+      cache.get(key).state !== ResourceState.Failed
     ) {
       return;
     }
-    load(payload);
+    load(key);
   }
 
-  function clear(input) {
-    const { key } = parsePayload(input);
+  function clear(key = defaultKey) {
     if (cache.has(key)) {
       cache.delete(key);
     }
@@ -124,4 +102,10 @@ export function preloadResources(potentialResources) {
 
     resources.forEach((resource) => resource.preload());
   };
+}
+
+export function useResource(createResource, deps) {
+  const memoized = useMemo(createResource, deps);
+
+  return memoized;
 }
